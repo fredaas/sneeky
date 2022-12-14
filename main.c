@@ -374,6 +374,8 @@ void run_game(void)
 {
     pane_clear();
 
+    srand(3141592654);
+
     timeout(0);
 
     snake_init(0, 0, 3);
@@ -391,8 +393,6 @@ void run_game(void)
 
 int main(int argc, char **argv)
 {
-    srand(3141592654);
-
     pane_init(30, 15);
 
     set_game_state(STATE_START_SCREEN);
