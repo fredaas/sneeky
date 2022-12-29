@@ -1,9 +1,12 @@
-all : clean main
+CC=gcc
+CFLAGS=-std=c99 -Wall -O2 -D_POSIX_C_SOURCE=199309L -I. -lncurses -lsqlite3
 
-main : main.c
-	gcc -o main $^ -std=c99 -Wall -O2 -D_POSIX_C_SOURCE=199309L -lncurses
-	mkdir bin
-	mv main bin/sneeky
+all : clean sneeky
+
+sneeky : main.c db.c
+	$(CC) -o $@ $^ $(CFLAGS)
+	mkdir -p bin
+	mv sneeky bin/sneeky
 
 clean :
-	rm -rf main *.o bin
+	rm -rf sneeky *.o bin

@@ -1,57 +1,15 @@
-#include <stdio.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
-#include <time.h>
-#include <sys/time.h>
-#include <ncurses.h>
-#include <math.h>
-#include <sqlite3.h>
+#include "sneeky.h"
 
-#define MSEC(sec) ((sec) * 1e+3)
+Apple apple;
+Snake snake;
+Player player;
+Pane pane;
 
-#define WALL_RIGHT  (world.w - 2)
-#define WALL_LEFT   (0)
-#define WALL_TOP    (0)
-#define WALL_BOTTOM (world.h - 1)
-
-struct Apple {
-    int x;
-    int y;
-} apple;
-
-struct Snake {
-    int *x;
-    int *y;
-    int d[2];
-    int size;
-    int q;
-    int max_q;
-} snake;
-
-struct Pane {
-    int w;
-    int h;
-    WINDOW *win;
-    char **buff;
-} pane;
-
-enum {
-    STATE_START_SCREEN,
-    STATE_RUN_GAME,
-    STATE_GAME_OVER
-};
-
-void display_start_screen(void);
-void display_score_screen(void);
-void run_game(void);
-
-const int FPS = 15;
-const int T_SLEEP_MS = 1000 / FPS;
-
-const char TOKEN_SNAKE_HEAD = 'O';
-const char TOKEN_SNAKE_BODY = '#';
-const char TOKEN_APPLE = 'Q';
+/******************************************************************************
+ *
+ * Utils
+ *
+ *****************************************************************************/
 
 static inline int mod(int a, int b)
 {
@@ -85,21 +43,23 @@ static inline wchar_t nextkey(void)
     return key;
 }
 
-void set_game_state(int state)
+/******************************************************************************
+ *
+ * Player
+ *
+ *****************************************************************************/
+
+void player_init(void)
 {
-    switch (state)
-    {
-    case STATE_START_SCREEN:
-        display_start_screen();
-        break;
-    case STATE_RUN_GAME:
-        run_game();
-        break;
-    case STATE_GAME_OVER:
-        display_score_screen();
-        break;
-    }
+    memset(player.name, '\0', sizeof(char) * (PLAYER_NAME_SIZE));
+    player.score = 0;
 }
+
+/******************************************************************************
+ *
+ * Snake
+ *
+ *****************************************************************************/
 
 void snake_init(int x, int y, int size)
 {
@@ -121,6 +81,37 @@ void snake_init(int x, int y, int size)
     }
 }
 
+void snake_update(void)
+{
+    wchar_t key = nextkey();
+
+    int dx = snake.d[0];
+    int dy = snake.d[1];
+
+    if ((key == 'a' || key == KEY_LEFT) && dx != 1)
+    {
+        snake.d[0] = -1;
+        snake.d[1] = 0;
+    }
+    else if ((key == 'd' || key == KEY_RIGHT) && dx != -1)
+    {
+        snake.d[0] = 1;
+        snake.d[1] = 0;
+    }
+    else if ((key == 'w' || key == KEY_UP) && dy != 1)
+    {
+        snake.d[0] = 0;
+        snake.d[1] = -1;
+    }
+    else if ((key == 's' || key == KEY_DOWN) && dy != -1)
+    {
+        snake.d[0] = 0;
+        snake.d[1] = 1;
+    }
+    else if (key == 'q')
+        set_game_state(STATE_QUIT);
+}
+
 int snake_collision()
 {
     if (snake.size < 5)
@@ -138,6 +129,12 @@ int snake_collision()
 
     return 0;
 }
+
+/******************************************************************************
+ *
+ * World
+ *
+ *****************************************************************************/
 
 void world_update(void)
 {
@@ -158,6 +155,7 @@ void world_update(void)
         apple.x = rand() % pane.w;
         apple.y = rand() % pane.h;
         snake.size++;
+        player.score += 42;
     }
 
     snake.q = (snake.q + 1) % snake.max_q;
@@ -185,50 +183,11 @@ void world_draw(void)
     wrefresh(pane.win);
 }
 
-void keyboard_read_input(void)
-{
-    wchar_t key = nextkey();
-
-    int dx = snake.d[0];
-    int dy = snake.d[1];
-
-    if ((key == 'a' || key == KEY_LEFT) && dx != 1)
-    {
-        snake.d[0] = -1;
-        snake.d[1] = 0;
-    }
-    else if ((key == 'd' || key == KEY_RIGHT) && dx != -1)
-    {
-        snake.d[0] = 1;
-        snake.d[1] = 0;
-    }
-    else if ((key == 'w' || key == KEY_UP) && dy != 1)
-    {
-        snake.d[0] = 0;
-        snake.d[1] = -1;
-    }
-    else if ((key == 's' || key == KEY_DOWN) && dy != -1)
-    {
-        snake.d[0] = 0;
-        snake.d[1] = 1;
-    }
-
-    else if (key == 'q')
-    {
-        endwin();
-        exit(0);
-    }
-}
-
-void pane_clear(void)
-{
-    for (int y = 0; y < pane.h; y++)
-    {
-        mvwprintw(pane.win, y + 1, 1, "%*s", pane.w, "");
-        memset(pane.buff[y], ' ', pane.w * sizeof(char));
-    }
-    refresh();
-}
+/******************************************************************************
+ *
+ * Pane
+ *
+ *****************************************************************************/
 
 void pane_init(int w, int h)
 {
@@ -267,10 +226,51 @@ void pane_init(int w, int h)
     wrefresh(pane.win);
 }
 
+void pane_clear(void)
+{
+    for (int y = 0; y < pane.h; y++)
+    {
+        mvwprintw(pane.win, y + 1, 1, "%*s", pane.w, "");
+        memset(pane.buff[y], ' ', pane.w * sizeof(char));
+    }
+    refresh();
+}
+
+/******************************************************************************
+ *
+ * Displays
+ *
+ *****************************************************************************/
+
+void display_exit_screen(void)
+{
+    pane_clear();
+    timeout(100);
+
+    char *s1 = "Quit?";
+    mvwprintw(pane.win, ceil(pane.h / 2), (pane.w - strlen(s1)) / 2 + 1, "%s", s1);
+
+    char *s2 = "Press Enter to resume,";
+    mvwprintw(pane.win, pane.h - 1, (pane.w - strlen(s2)) / 2 + 1, "%s", s2);
+    char *s3 = "or 'q' to quit";
+    mvwprintw(pane.win, pane.h, (pane.w - strlen(s3)) / 2 + 1, "%s", s3);
+
+    wrefresh(pane.win);
+
+    wchar_t key;
+    while(1)
+    {
+        key = getch();
+        if (key == 'q')
+            set_game_state(STATE_START_SCREEN);
+        if (key == '\n')
+            set_game_state(STATE_PLAY_GAME);
+    }
+}
+
 void display_start_screen(void)
 {
     pane_clear();
-
     timeout(100);
 
     int y = ceil(pane.h / 2);
@@ -279,7 +279,9 @@ void display_start_screen(void)
     mvwprintw(pane.win, y - 2, (pane.w - strlen(s1)) / 2 + 1, "%s", s1);
 
     char *s2 = "Press Enter to start";
-    mvwprintw(pane.win, pane.h, (pane.w - strlen(s2)) / 2 + 1, "%s", s2);
+    mvwprintw(pane.win, pane.h - 1, (pane.w - strlen(s2)) / 2 + 1, "%s", s2);
+    char *s3 = "or 'q' to quit";
+    mvwprintw(pane.win, pane.h, (pane.w - strlen(s3)) / 2 + 1, "%s", s3);
 
     int size = 3;
     char *list[] = { "Easy", "Medium", "Hard" };
@@ -301,6 +303,9 @@ void display_start_screen(void)
             j = i++;
             i = mod(i, size);
             break;
+        case 'q':
+            exit_and_cleanup();
+            break;
         }
         mvwprintw(pane.win, y + j, (pane.w - strlen(list[j])) / 2, " %s ", list[j]);
         mvwprintw(pane.win, y + i, (pane.w - strlen(list[i])) / 2, "[%s]", list[i]);
@@ -308,7 +313,7 @@ void display_start_screen(void)
         flushinp();
     }
 
-    set_game_state(STATE_RUN_GAME);
+    set_game_state(STATE_PLAY_NEW_GAME);
 }
 
 int is_ascii_char(wchar_t c)
@@ -318,10 +323,9 @@ int is_ascii_char(wchar_t c)
            ((c >= '0') && (c <= '9'));
 }
 
-void display_score_screen(void)
+void display_game_over_screen(void)
 {
     pane_clear();
-
     timeout(100);
 
     int y = ceil(pane.h / 2);
@@ -333,32 +337,39 @@ void display_score_screen(void)
     mvwprintw(pane.win, pane.h, (pane.w - strlen(s2)) / 2 + 1, "%s", s2);
 
     char s3[32];
-    sprintf(s3, "Score: %d", 42);
+    sprintf(s3, "Score: %d", player.score);
     mvwprintw(pane.win, y + 2, (pane.w - strlen(s3)) / 2, "%s", s3);
 
-    int buff_size = 16 + 1;
+    int buff_size = PLAYER_NAME_SIZE;
     char buff[buff_size];
     memset(buff, '\0', sizeof(char) * buff_size);
+    int n = 0; /* Current buff size */
 
-    int i = 0;
+    /* If the player already typed his name, remember it from last time */
+    if (strlen(player.name) > 0)
+    {
+        strcpy(buff, player.name);
+        n = strlen(buff);
+    }
+
     wchar_t key;
     while(1)
     {
         key = getch();
         if (key != ERR && is_ascii_char(key))
         {
-            if (i < buff_size - 1)
+            if (n < buff_size - 1)
             {
-                buff[i++] = key;
-                buff[i] = '\0';
+                buff[n++] = key;
+                buff[n] = '\0';
             }
         }
         else if (key == KEY_BACKSPACE)
         {
-            if (i > 0)
-                buff[--i] = '\0';
+            if (n > 0)
+                buff[--n] = '\0';
         }
-        if (key == '\n' && i > 0)
+        if (key == '\n' && n > 0)
         {
             break;
         }
@@ -367,38 +378,128 @@ void display_score_screen(void)
         wrefresh(pane.win);
     }
 
-    set_game_state(STATE_START_SCREEN);
+    strcpy(player.name, buff);
+
+    set_game_state(STATE_HIGHSCORE);
 }
 
-void run_game(void)
+void display_highscore_screen(void)
 {
     pane_clear();
+    timeout(100);
 
+    Table *table = table_init();
+
+    table_write_row(table, player.name, player.score);
+
+    table_read_rows(table);
+
+    int y = ceil(pane.h / 2);
+
+    char *s1 = "Highscores";
+    mvwprintw(pane.win, y - 2, (pane.w - strlen(s1)) / 2, "%s", s1);
+
+    char *s2 = "Press Enter to continue";
+    mvwprintw(pane.win, pane.h, (pane.w - strlen(s2)) / 2 + 1, "%s", s2);
+
+    for (int i = 0; i < TABLE_SIZE; i++)
+    {
+        char *name = table->name[i];
+        int score = table->score[i];
+
+        if (score > 0)
+            mvwprintw(pane.win, y + i, 2,"%d. %s %d", i + 1, name, score);
+        else
+            mvwprintw(pane.win, y + i, 2, "%d. -", i + 1);
+    }
+
+    table_free(table);
+
+    wrefresh(pane.win);
+
+    wchar_t key;
+    while(1)
+    {
+        key = getch();
+        if (key == '\n')
+            set_game_state(STATE_START_SCREEN);
+    }
+}
+
+/******************************************************************************
+ *
+ * Game
+ *
+ *****************************************************************************/
+
+void set_game_state(int state)
+{
+    switch (state)
+    {
+    case STATE_START_SCREEN:
+        display_start_screen();
+        break;
+    case STATE_PLAY_NEW_GAME:
+        start_new_game();
+        break;
+    case STATE_PLAY_GAME:
+        start_game();
+        break;
+    case STATE_GAME_OVER:
+        display_game_over_screen();
+        break;
+    case STATE_HIGHSCORE:
+        display_highscore_screen();
+        break;
+    case STATE_QUIT:
+        display_exit_screen();
+        break;
+    }
+}
+
+void start_new_game(void)
+{
     srand(3141592654);
 
-    timeout(0);
-
     snake_init(0, 0, 3);
+
+    player.score = 0;
 
     apple.x = rand() % pane.w;
     apple.y = rand() % pane.h;
 
+    start_game();
+}
+
+void start_game(void)
+{
+    pane_clear();
+    timeout(0);
+
     while (1)
     {
-        keyboard_read_input();
+        snake_update();
         world_update();
         world_draw();
     }
+}
+
+void exit_and_cleanup(void)
+{
+    delwin(pane.win);
+    endwin();
+    exit(0);
 }
 
 int main(int argc, char **argv)
 {
     pane_init(30, 15);
 
+    player_init();
+
     set_game_state(STATE_START_SCREEN);
 
-    delwin(pane.win);
-    endwin();
+    exit_and_cleanup();
 
     return 0;
 }
