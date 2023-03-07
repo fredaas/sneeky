@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-std=c99 -Wall -O2 -D_POSIX_C_SOURCE=199309L -I. -lncurses -lsqlite3
+CFLAGS=-std=c99 -Wall -O2 -D_POSIX_C_SOURCE=199309L -I. -lncurses -lsqlite3 -lm
 
 all : clean sneeky
 

@@ -40,6 +40,13 @@ void table_read_rows(Table *self);
 #define WALL_TOP    (0)
 #define WALL_BOTTOM (world.h - 1)
 
+typedef struct Transition Transition;
+
+struct Transition {
+    int *x;
+    int *y;
+};
+
 typedef struct Apple Apple;
 
 struct Apple {
@@ -89,6 +96,9 @@ enum {
 #define TOKEN_SNAKE_HEAD 'O'
 #define TOKEN_SNAKE_BODY '#'
 #define TOKEN_APPLE 'Q'
+
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#define max(a, b) ((a) > (b) ? (a) : (b))
 
 void player_init(void);
 

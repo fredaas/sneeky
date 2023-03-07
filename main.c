@@ -4,6 +4,7 @@ Apple apple;
 Snake snake;
 Player player;
 Pane pane;
+Transition trans;
 
 /******************************************************************************
  *
@@ -45,6 +46,52 @@ static inline wchar_t nextkey(void)
 
 /******************************************************************************
  *
+ * Transition
+ *
+ *****************************************************************************/
+
+void transition_init(void)
+{
+    int size = pane.w * pane.h;
+
+    trans.x = (int *)malloc(size * sizeof(int));
+    trans.y = (int *)malloc(size * sizeof(int));
+
+    for (int i = 0; i < size; i++)
+    {
+        trans.x[i] = -1;
+        trans.y[i] = -1;
+    }
+
+    for (int i = 0; i < size; i++)
+    {
+        int k = rand() % size;
+        while (trans.x[k] != -1)
+            k = (k + 1) % size;
+        trans.x[k] = 1 + (i % pane.w);
+        trans.y[k] = 1 + (i / pane.w);
+    }
+}
+
+void transition_to(int state)
+{
+    for (int i = 0; i < pane.w * pane.h; i++)
+    {
+        mvwprintw(pane.win, trans.y[i], trans.x[i], "Q");
+        wrefresh(pane.win);
+        sleep_ms(1);
+    }
+    for (int i = 0; i < pane.w * pane.h; i++)
+    {
+        mvwprintw(pane.win, trans.y[i], trans.x[i], " ");
+        wrefresh(pane.win);
+        sleep_ms(1);
+    }
+    set_game_state(state);
+}
+
+/******************************************************************************
+ *
  * Player
  *
  *****************************************************************************/
@@ -70,15 +117,35 @@ void snake_init(int x, int y, int size)
     snake.d[0] = 1;
     snake.d[1] = 0;
     snake.size = size;
-    for (int i = 0; i < size; i++)
+
+    x = max(x, 0);
+    x = min(x, pane.w - 1);
+    y = max(y, 0);
+    y = min(y, pane.h - 1);
+
+    for (int i = 0; i < snake.size; i++)
     {
-        snake.x[i] = x + i;
-        snake.y[i] = y;
-        if (i < snake.q)
-            pane.buff[y][x + i] = TOKEN_SNAKE_BODY;
-        else
-            pane.buff[y][x + i] = TOKEN_SNAKE_HEAD;
+        snake.x[i] = (x + i * snake.d[0]) % pane.w;
+        snake.y[i] = (y + i * snake.d[1]) % pane.h;
     }
+}
+
+void snake_draw(void)
+{
+    int x, y, k = mod(snake.q - snake.size + 1, snake.max_q);
+
+    /* Draw body */
+    for (int i = 0; i < snake.size - 1; i++)
+    {
+        x = snake.x[(k + i) % snake.max_q];
+        y = snake.y[(k + i) % snake.max_q];
+        pane.buff[y][x] = TOKEN_SNAKE_BODY;
+    }
+
+    /* Draw head */
+    x = snake.x[snake.q];
+    y = snake.y[snake.q];
+    pane.buff[y][x] = TOKEN_SNAKE_HEAD;
 }
 
 void snake_update(void)
@@ -163,7 +230,7 @@ void world_update(void)
     snake.y[snake.q] = ny;
 
     if (snake_collision())
-        set_game_state(STATE_GAME_OVER);
+        transition_to(STATE_GAME_OVER);
 }
 
 void world_draw(void)
@@ -250,7 +317,7 @@ void display_exit_screen(void)
     char *s1 = "Quit?";
     mvwprintw(pane.win, ceil(pane.h / 2), (pane.w - strlen(s1)) / 2 + 1, "%s", s1);
 
-    char *s2 = "Press Enter to resume,";
+    char *s2 = "Press Enter to resume ";
     mvwprintw(pane.win, pane.h - 1, (pane.w - strlen(s2)) / 2 + 1, "%s", s2);
     char *s3 = "or 'q' to quit";
     mvwprintw(pane.win, pane.h, (pane.w - strlen(s3)) / 2 + 1, "%s", s3);
@@ -461,7 +528,9 @@ void start_new_game(void)
 {
     srand(3141592654);
 
-    snake_init(0, 0, 3);
+    snake_init(pane.w / 2 - 4, pane.h / 2, 4);
+
+    player_init();
 
     player.score = 0;
 
@@ -475,6 +544,8 @@ void start_game(void)
 {
     pane_clear();
     timeout(0);
+
+    snake_draw();
 
     while (1)
     {
@@ -495,7 +566,7 @@ int main(int argc, char **argv)
 {
     pane_init(30, 15);
 
-    player_init();
+    transition_init();
 
     set_game_state(STATE_START_SCREEN);
 
