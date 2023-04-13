@@ -19,20 +19,26 @@
  * Row values and column names follow the same ordering as in the database
  * table.
  *
- * @param argc Number of columns returned from the query.
- * @param argv Row values.
+ * @param table Pointer to the Table struct.
+ * @param numcols Number of columns returned from the query.
+ * @param rows Row values.
  * @param colname Column names.
  */
-int table_read_callback(void *table, int argc, char **argv, char **colname) {
-
+int table_read_callback(void *table, int numcols, char **rows, char **colname)
+{
     Table *self = (Table *)table;
     int i = self->head;
-    strcpy(self->name[i], argv[0]);
-    self->score[i] = atoi(argv[1]);
+    strcpy(self->name[i], rows[0]);
+    self->score[i] = atoi(rows[1]);
     self->head++;
     return 0;
 }
 
+/**
+ * @brief Read all player names and scores.
+ *
+ * The results are stored in the Table struct.
+ */
 void table_read_rows(Table *self)
 {
     self->head = 0;
@@ -43,6 +49,12 @@ void table_read_rows(Table *self)
     TABLE_ASSERT_EXEC(self, query, table_read_callback);
 }
 
+/**
+ * @brief Write player name and score.
+ *
+ * @param name Player name.
+ * @param score Player score.
+ */
 void table_write_row(Table *self, char *name, int score)
 {
     char query[TABLE_QUERY_SIZE];
@@ -52,12 +64,18 @@ void table_write_row(Table *self, char *name, int score)
     TABLE_ASSERT_EXEC(self, query, NULL);
 }
 
+/**
+ * @brief Free table.
+ */
 void table_free(Table *self)
 {
     sqlite3_close(self->db);
     free(self);
 }
 
+/**
+ * @brief Initalize database.
+ */
 Table * table_init(void)
 {
     Table *self = (Table *)malloc(sizeof(Table));
