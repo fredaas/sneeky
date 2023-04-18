@@ -90,8 +90,9 @@ enum {
     STATE_QUIT,
 };
 
-#define FPS 15
-#define T_SLEEP_MS (1000 / FPS)
+#define SPEED_EASY 15
+#define SPEED_MEDIUM 20
+#define SPEED_HARD 25
 
 #define TOKEN_SNAKE_HEAD 'O'
 #define TOKEN_SNAKE_BODY '#'
@@ -117,6 +118,7 @@ void display_start_screen(void);
 void display_game_over_screen(void);
 void display_highscore_screen(void);
 
+void set_difficulty(int level);
 void set_game_state(int state);
 void start_new_game(void);
 void start_game(void);

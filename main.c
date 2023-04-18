@@ -6,6 +6,12 @@ Player player;
 Pane pane;
 Transition trans;
 
+const int FPS[] = { SPEED_EASY, SPEED_MEDIUM, SPEED_HARD };
+
+float difficulty = SPEED_MEDIUM / SPEED_EASY;
+
+int t_sleep_ms = 1000 / SPEED_MEDIUM;
+
 /******************************************************************************
  *
  * Utils
@@ -38,8 +44,8 @@ static inline wchar_t nextkey(void)
     double t_start = walltime();
     wchar_t key;
     while (((key = getch()) == ERR)
-             && (MSEC(walltime() - t_start) < T_SLEEP_MS));
-    sleep_ms(T_SLEEP_MS - MSEC(walltime() - t_start));
+             && (MSEC(walltime() - t_start) < t_sleep_ms));
+    sleep_ms(t_sleep_ms - MSEC(walltime() - t_start));
     flushinp();
     return key;
 }
@@ -222,7 +228,7 @@ void world_update(void)
         apple.x = rand() % pane.w;
         apple.y = rand() % pane.h;
         snake.size++;
-        player.score += 42;
+        player.score += difficulty * 42;
     }
 
     snake.q = (snake.q + 1) % snake.max_q;
@@ -355,8 +361,9 @@ void display_start_screen(void)
     for (int i = i; i < size; i++)
         mvwprintw(pane.win, y + i, (pane.w - strlen(list[i])) / 2, " %s ", list[i]);
 
-    int i = 0;
-    int j = 0;
+    int i = 1; /* Current selection (Medium) */
+    int j = 1; /* Previous selection */
+
     wchar_t key;
     while((key = getch()) != '\n')
     {
@@ -379,6 +386,8 @@ void display_start_screen(void)
         wrefresh(pane.win);
         flushinp();
     }
+
+    set_difficulty(i);
 
     set_game_state(STATE_PLAY_NEW_GAME);
 }
@@ -498,6 +507,13 @@ void display_highscore_screen(void)
  * Game
  *
  *****************************************************************************/
+
+void set_difficulty(int level)
+{
+    int delta = FPS[level];
+    t_sleep_ms = 1000 / delta;
+    difficulty = (float)delta / SPEED_EASY;
+}
 
 void set_game_state(int state)
 {
