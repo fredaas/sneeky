@@ -101,10 +101,13 @@ enum {
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
+void apple_distribute(void);
+
 void player_init(void);
 
 void snake_init(int x, int y, int size);
 void snake_update(void);
+int snake_contains(int x, int y);
 int snake_collision();
 
 void world_update(void);

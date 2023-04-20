@@ -98,6 +98,35 @@ void transition_to(int state)
 
 /******************************************************************************
  *
+ * Apple
+ *
+ *****************************************************************************/
+
+void apple_distribute(void)
+{
+    int size = pane.w * pane.h - snake.size;
+    int free_x[size];
+    int free_y[size];
+
+    int k = 0;
+    for (int i = 0; i < pane.w * pane.h; i++)
+    {
+        int x = i % pane.w;
+        int y = i / pane.w;
+        if (snake_contains(x, y))
+            continue;
+        free_x[k] = x;
+        free_y[k] = y;
+        k++;
+    }
+
+    k = rand() % size;
+    apple.x = free_x[k];
+    apple.y = free_y[k];
+}
+
+/******************************************************************************
+ *
  * Player
  *
  *****************************************************************************/
@@ -185,9 +214,20 @@ void snake_update(void)
         set_game_state(STATE_QUIT);
 }
 
+int snake_contains(int x, int y)
+{
+    for (int i = 0; i < snake.size; i++)
+    {
+        int k = mod(snake.q - i, snake.max_q);
+        if (snake.x[k] == x && snake.y[k] == y)
+            return 1;
+    }
+    return 0;
+}
+
 int snake_collision()
 {
-    if (snake.size < 5)
+    if (snake.size <= 4)
         return 0;
 
     int x = snake.x[snake.q];
@@ -225,8 +265,7 @@ void world_update(void)
 
     if (apple.x == nx && apple.y == ny)
     {
-        apple.x = rand() % pane.w;
-        apple.y = rand() % pane.h;
+        apple_distribute();
         snake.size++;
         player.score += difficulty * 42;
     }
@@ -550,8 +589,7 @@ void start_new_game(void)
 
     player.score = 0;
 
-    apple.x = rand() % pane.w;
-    apple.y = rand() % pane.h;
+    apple_distribute();
 
     start_game();
 }
