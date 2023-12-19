@@ -397,7 +397,7 @@ void display_start_screen(void)
 
     int size = 3;
     char *list[] = { "Easy", "Medium", "Hard" };
-    for (int i = i; i < size; i++)
+    for (int i = 0; i < size; i++)
         mvwprintw(pane.win, y + i, (pane.w - strlen(list[i])) / 2, " %s ", list[i]);
 
     int i = 1; /* Current selection (Medium) */
@@ -581,7 +581,7 @@ void set_game_state(int state)
 
 void start_new_game(void)
 {
-    srand(3141592654);
+    srand(0xDEADBEEF);
 
     snake_init(pane.w / 2 - 4, pane.h / 2, 4);
 
