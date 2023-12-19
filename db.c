@@ -80,13 +80,15 @@ Table * table_init(void)
 {
     Table *self = (Table *)malloc(sizeof(Table));
 
+    sprintf(self->path, "%s/highscores.db", getenv("HOME"));
+
     for (int i = 0; i < TABLE_SIZE; i++)
     {
         memset(self->name[i], '\0', TABLE_STRING_SIZE * sizeof(char));
         self->score[i] = 0;
     }
 
-    int ret = sqlite3_open("highscores.db", &self->db);
+    int ret = sqlite3_open(self->path, &self->db);
 
     if (ret != SQLITE_OK) {
         fprintf(stderr, "Failed to open database: %s\n", sqlite3_errmsg(self->db));

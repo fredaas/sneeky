@@ -23,6 +23,7 @@ struct Table {
     int score[TABLE_SIZE];
     int head;
     sqlite3 *db;
+    char path[256];
 };
 
 Table * table_init(void);
